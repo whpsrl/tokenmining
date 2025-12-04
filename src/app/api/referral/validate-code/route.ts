@@ -1,75 +1,86 @@
+// src/app/api/referral/validate-code/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST(request: NextRequest) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export async function GET(request: NextRequest) {
   try {
-    const { code } = await request.json();
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
 
     if (!code) {
-      return NextResponse.json(
-        { success: false, error: 'Codice mancante' },
-        { status: 400 }
-      );
+      return NextResponse.json({ 
+        valid: false, 
+        error: 'Codice referral mancante' 
+      }, { status: 400 });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Get referral settings
-    const settingsResult = await pool.query(
-      `SELECT program_active, program_end_date 
-      FROM referral_settings 
-      ORDER BY id DESC 
-      LIMIT 1`
-    );
+    const { data: settings, error: settingsError } = await supabase
+      .from('referral_settings')
+      .select('program_active, program_end_date')
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
 
-    const settings = settingsResult.rows[0];
+    if (settingsError) {
+      console.error('Settings error:', settingsError);
+      return NextResponse.json({ 
+        valid: false, 
+        error: 'Errore nel recupero impostazioni' 
+      }, { status: 500 });
+    }
 
     // Check if program is active
-    if (!settings || !settings.program_active) {
-      return NextResponse.json(
-        { success: false, error: 'Programma referral non attivo' },
-        { status: 400 }
-      );
+    if (!settings?.program_active) {
+      return NextResponse.json({ 
+        valid: false, 
+        error: 'Programma referral non attivo' 
+      });
     }
 
-    // Check if program has ended
-    if (settings.program_end_date && new Date() > new Date(settings.program_end_date)) {
-      return NextResponse.json(
-        { success: false, error: 'Programma referral terminato' },
-        { status: 400 }
-      );
+    // Check program end date
+    if (settings.program_end_date) {
+      const endDate = new Date(settings.program_end_date);
+      if (endDate < new Date()) {
+        return NextResponse.json({ 
+          valid: false, 
+          error: 'Programma referral terminato' 
+        });
+      }
     }
 
-    // Find user with this referral code
-    const userResult = await pool.query(
-      `SELECT id, email, referral_code, direct_referrals 
-      FROM users 
-      WHERE referral_code = $1`,
-      [code.toUpperCase()]
-    );
+    // Validate referral code
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, referral_code')
+      .eq('referral_code', code)
+      .single();
 
-    if (userResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Codice referral non valido' },
-        { status: 404 }
-      );
+    if (userError || !user) {
+      return NextResponse.json({ 
+        valid: false, 
+        error: 'Codice referral non valido' 
+      });
     }
 
-    const referrer = userResult.rows[0];
-
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      valid: true,
       referrer: {
-        id: referrer.id,
-        email: referrer.email,
-        referralCode: referrer.referral_code,
-        directReferrals: referrer.direct_referrals
+        id: user.id,
+        email: user.email
       }
     });
 
   } catch (error) {
-    console.error('Error validating referral code:', error);
-    return NextResponse.json(
-      { success: false, error: 'Errore interno' },
-      { status: 500 }
-    );
+    console.error('Validate code error:', error);
+    return NextResponse.json({ 
+      valid: false, 
+      error: 'Errore interno del server' 
+    }, { status: 500 });
   }
 }

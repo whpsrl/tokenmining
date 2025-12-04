@@ -44,40 +44,67 @@ export default function DashboardPage() {
     );
   }
 
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Fetch real dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        const response = await fetch('/api/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setDashboardData(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    if (authUser) {
+      fetchDashboardData();
+    }
+  }, [authUser]);
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mb-4"></div>
+          <p className="text-gray-400">Caricamento dati...</p>
+        </div>
+      </div>
+    );
+  }
+
   const user = {
-    email: authUser.email || 'demo@hashburst.io',
-    wallet: authUser.walletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
-    tokenBalance: 15234.50,
-    referralCode: authUser.referralCode || 'HB8X4K9P',
-    totalReferrals: authUser.totalReferrals || 12,
-    totalCommission: authUser.totalCommission || 2847.30
+    email: dashboardData?.user?.email || authUser.email || 'demo@hashburst.io',
+    wallet: dashboardData?.user?.walletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
+    tokenBalance: dashboardData?.balance?.tokenBalance || 0,
+    referralCode: dashboardData?.user?.referralCode || authUser.referralCode || 'HB8X4K9P',
+    totalReferrals: dashboardData?.referrals?.totalReferrals || 0,
+    totalCommission: dashboardData?.referrals?.totalCommission || 0
   };
 
-  const [stats, setStats] = useState({
-    totalPurchased: 10000,
-    currentValue: 15234.50,
-    profitLoss: 52.35,
-    monthlyRewards: 456.78
-  });
+  const stats = {
+    totalPurchased: dashboardData?.balance?.totalPurchased || 0,
+    currentValue: dashboardData?.balance?.currentValue || 0,
+    profitLoss: dashboardData?.balance?.profitLossPercent || 0,
+    monthlyRewards: 0 // Calculate based on holdings
+  };
 
-  const [transactions, setTransactions] = useState([
-    {
-      id: 1,
-      type: 'purchase',
-      amount: 5000,
-      price: 0.10,
-      total: 500,
-      date: '2025-01-15',
-      status: 'completed'
-    },
-    {
-      id: 2,
-      type: 'reward',
-      amount: 234.50,
-      price: 0.12,
-      total: 28.14,
-      date: '2025-01-10',
-      status: 'completed'
+  const transactions = dashboardData?.transactions || [];
     },
     {
       id: 3,
@@ -202,6 +229,104 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Referral Link Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-8"
+          >
+            <div className="glass-dark rounded-2xl p-6 border border-primary-500/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Users className="w-6 h-6 text-primary-400" />
+                  Il Tuo Link Referral
+                </h3>
+                <Link href="/affiliates" className="text-primary-400 hover:text-primary-300 text-sm font-semibold flex items-center gap-1">
+                  Vedi Dettagli
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Referral Link Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Link di Invito Personale
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 glass rounded-lg px-4 py-3 border border-white/10">
+                      <p className="text-white text-sm truncate">
+                        {typeof window !== 'undefined' ? window.location.origin : 'https://tuosito.com'}/ref?ref={user.referralCode}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://tuosito.com'}/ref?ref=${user.referralCode}`;
+                        navigator.clipboard.writeText(link);
+                        toast.success('Link copiato!');
+                      }}
+                      className="btn-primary px-6 flex items-center gap-2"
+                      title="Copia Link"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copia
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Condividi questo link per guadagnare commissioni del 10% su ogni acquisto
+                  </p>
+                </div>
+
+                {/* Referral Code Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Il Tuo Codice Referral
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 glass rounded-lg px-4 py-3 border border-primary-500/30 bg-primary-500/10">
+                      <p className="text-2xl font-bold gradient-text text-center tracking-wider">
+                        {user.referralCode}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(user.referralCode);
+                        toast.success('Codice copiato!');
+                      }}
+                      className="btn-secondary px-6 flex items-center gap-2"
+                      title="Copia Codice"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copia
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    I tuoi amici possono usare questo codice durante la registrazione
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary-400">{user.totalReferrals}</div>
+                  <div className="text-xs text-gray-400">Utenti Invitati</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    ${user.totalCommission.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-400">Commissioni Totali</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-accent-400">10%</div>
+                  <div className="text-xs text-gray-400">Tasso Commissione</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}

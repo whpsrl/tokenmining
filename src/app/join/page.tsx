@@ -1,10 +1,40 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Cpu, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function JoinPage() {
+  const [stats, setStats] = useState({
+    miners: 0,
+    holders: 0,
+    dailyRewards: 0,
+    uptime: 99.9
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStats({
+            miners: data.stats.activeMining || 0,
+            holders: data.stats.totalHolders || 0,
+            dailyRewards: Math.floor(data.stats.totalRaised / 100) || 0,
+            uptime: 99.9
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50">
       {/* Navigation */}
@@ -139,19 +169,19 @@ export default function JoinPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Miners Attivi</span>
-                    <span className="text-white font-semibold">950+</span>
+                    <span className="text-white font-semibold">{stats.miners}+</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Token Holders</span>
-                    <span className="text-white font-semibold">1,247</span>
+                    <span className="text-white font-semibold">{stats.holders.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Daily Rewards</span>
-                    <span className="text-primary-400 font-semibold">$15,234</span>
+                    <span className="text-primary-400 font-semibold">${stats.dailyRewards.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Network Uptime</span>
-                    <span className="text-green-400 font-semibold">99.9%</span>
+                    <span className="text-green-400 font-semibold">{stats.uptime}%</span>
                   </div>
                 </div>
               </div>

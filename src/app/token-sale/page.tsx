@@ -25,7 +25,45 @@ export default function TokenSalePage() {
     seconds: 45
   });
 
-  const [progress, setProgress] = useState(67); // 67% sold
+  const [stats, setStats] = useState({
+    raised: 0,
+    target: 5000000,
+    progress: 0,
+    holders: 0,
+    tokensSold: 0
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStats({
+            raised: data.stats.totalRaised || 0,
+            target: data.stats.presaleTarget || 5000000,
+            progress: data.stats.presaleProgress || 0,
+            holders: data.stats.totalHolders || 0,
+            tokensSold: data.stats.totalTokensSold || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+    
+    // Update every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Countdown timer
   useEffect(() => {
@@ -184,19 +222,19 @@ export default function TokenSalePage() {
             {/* Progress Bar */}
             <div className="max-w-4xl mx-auto">
               <div className="flex justify-between text-sm text-gray-300 mb-3">
-                <span>Raccolti: <strong className="text-primary-400">$3.8M</strong></span>
-                <span>Target: <strong>$5M</strong></span>
+                <span>Raccolti: <strong className="text-primary-400">${(stats.raised / 1000000).toFixed(2)}M</strong></span>
+                <span>Target: <strong>${(stats.target / 1000000).toFixed(1)}M</strong></span>
               </div>
               <div className="h-4 bg-dark-200 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
+                  animate={{ width: `${stats.progress}%` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
                   className="h-full bg-gradient-to-r from-primary-600 to-accent-600"
                 />
               </div>
               <p className="text-center text-sm text-gray-400 mt-2">
-                {progress}% completato - Solo ${5 - 3.8}M rimasti!
+                {stats.progress.toFixed(1)}% completato - Solo ${((stats.target - stats.raised) / 1000000).toFixed(2)}M rimasti!
               </p>
             </div>
           </motion.div>

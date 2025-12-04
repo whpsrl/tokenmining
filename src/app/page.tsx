@@ -21,23 +21,39 @@ import { useAuth } from '@/context/AuthContext';
 export default function HomePage() {
   const { isAuthenticated, user, logout } = useAuth();
   const [stats, setStats] = useState({
-    totalMiners: 950,
-    totalHashrate: 2847,
-    dailyRewards: 15234,
-    holders: 1289
+    totalMiners: 0,
+    totalHashrate: 0,
+    dailyRewards: 0,
+    holders: 0
   });
+  const [loading, setLoading] = useState(true);
 
+  // Fetch real stats from database
   useEffect(() => {
-    // Simula aggiornamento stats real-time
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        totalMiners: prev.totalMiners + Math.floor(Math.random() * 3),
-        totalHashrate: prev.totalHashrate + Math.floor(Math.random() * 10),
-        dailyRewards: prev.dailyRewards + Math.floor(Math.random() * 50),
-        holders: prev.holders + Math.floor(Math.random() * 2)
-      }));
-    }, 5000);
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStats({
+            totalMiners: data.stats.activeMining || 0,
+            totalHashrate: Math.floor(data.stats.totalTokensSold / 1000), // Simulate hashrate from tokens
+            dailyRewards: Math.floor(data.stats.totalRaised / 100), // Simulate daily rewards
+            holders: data.stats.totalHolders || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchStats();
+    
+    // Update stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -63,6 +79,12 @@ export default function HomePage() {
               animate={{ opacity: 1, x: 0 }}
               className="hidden md:flex items-center space-x-8"
             >
+              <Link href="/token-sale" className="text-gray-300 hover:text-white transition">
+                Token Sale
+              </Link>
+              <Link href="/join" className="text-gray-300 hover:text-white transition">
+                Mining Gratis
+              </Link>
               <Link href="/whitepaper" className="text-gray-300 hover:text-white transition">
                 Whitepaper
               </Link>
@@ -136,12 +158,12 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-              <Link href="/join" className="btn-primary group">
-                Mina Gratis Con Noi
+              <Link href="/token-sale" className="btn-primary group">
+                Compra Token - 50% OFF
                 <ArrowRight className="inline ml-2 w-5 h-5 group-hover:translate-x-1 transition" />
               </Link>
-              <Link href="/dashboard" className="btn-secondary">
-                Acquista Token
+              <Link href="/join" className="btn-secondary">
+                Mining Gratuito
               </Link>
             </div>
 

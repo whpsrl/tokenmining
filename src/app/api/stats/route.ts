@@ -8,14 +8,14 @@ export async function GET() {
     // Count total users (registrati)
     const { count: totalUsers, error: usersError } = await supabase
       .from('users')
-      .select('*', { count: 'only', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (usersError) throw usersError;
 
     // Count total token purchases
     const { count: totalPurchases, error: purchasesError } = await supabase
       .from('token_purchases')
-      .select('*', { count: 'only', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (purchasesError) throw purchasesError;
 
@@ -42,21 +42,21 @@ export async function GET() {
     // Count active referrals
     const { count: totalReferrals, error: referralsError } = await supabase
       .from('referrals')
-      .select('*', { count: 'only', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (referralsError) throw referralsError;
 
     // Count mining requests
     const { count: miningRequests, error: miningError } = await supabase
       .from('mining_requests')
-      .select('*', { count: 'only', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (miningError) throw miningError;
 
     // Count approved mining
     const { count: activeMining, error: activeMiningError } = await supabase
       .from('mining_requests')
-      .select('*', { count: 'only', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('status', 'approved');
 
     if (activeMiningError) throw activeMiningError;
@@ -64,7 +64,7 @@ export async function GET() {
     // Affiliate clicks
     const { count: affiliateClicks, error: clicksError } = await supabase
       .from('affiliate_clicks')
-      .select('*', { count: 'only', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (clicksError) throw clicksError;
 

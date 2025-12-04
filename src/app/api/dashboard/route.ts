@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     // Fetch affiliate clicks for user's referral code
     const { count: clicksCount, error: clicksError } = await supabase
       .from('affiliate_clicks')
-      .select('*', { count: 'only', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('referral_code', user.referral_code);
 
     if (clicksError) throw clicksError;

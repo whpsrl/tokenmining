@@ -122,15 +122,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     try {
+      // Clear user state first
+      setUser(null);
+      
+      // Clear token
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token');
+        
+        // Show toast
+        toast.success('Logout effettuato');
+        
+        // Force full page reload to home
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
       }
-      setUser(null);
-      toast.success('Logout effettuato');
-      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
-      // Forza logout anche in caso di errore
+      // Force logout anyway
       setUser(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token');

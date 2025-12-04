@@ -18,16 +18,40 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState({
-    email: 'demo@hashburst.io',
-    wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
+  const { user: authUser, isAuthenticated, loading, logout } = useAuth();
+  const router = useRouter();
+
+  // Redirect se non autenticato
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, loading, router]);
+
+  // Mostra loading
+  if (loading || !authUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mb-4"></div>
+          <p className="text-gray-400">Caricamento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const user = {
+    email: authUser.email || 'demo@hashburst.io',
+    wallet: authUser.walletAddress || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
     tokenBalance: 15234.50,
-    referralCode: 'HB8X4K9P',
-    totalReferrals: 12,
-    totalCommission: 2847.30
-  });
+    referralCode: authUser.referralCode || 'HB8X4K9P',
+    totalReferrals: authUser.totalReferrals || 12,
+    totalCommission: authUser.totalCommission || 2847.30
+  };
 
   const [stats, setStats] = useState({
     totalPurchased: 10000,
@@ -91,8 +115,12 @@ export default function DashboardPage() {
               <button className="p-2 glass rounded-lg hover:bg-white/10 transition">
                 <Settings className="w-5 h-5 text-gray-400" />
               </button>
-              <button className="p-2 glass rounded-lg hover:bg-white/10 transition">
-                <LogOut className="w-5 h-5 text-gray-400" />
+              <button 
+                onClick={logout}
+                className="p-2 glass rounded-lg hover:bg-white/10 transition hover:text-red-400 group"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5 text-gray-400 group-hover:text-red-400 transition" />
               </button>
             </div>
           </div>

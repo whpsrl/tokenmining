@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'HashBurst Token - Revolutionary Mining-Backed Cryptocurrency',
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster 
           position="top-right"
           toastOptions={{

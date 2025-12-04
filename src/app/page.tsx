@@ -12,11 +12,14 @@ import {
   ArrowRight,
   CheckCircle,
   Coins,
-  LineChart
+  LineChart,
+  LogOut
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function HomePage() {
+  const { isAuthenticated, user, logout } = useAuth();
   const [stats, setStats] = useState({
     totalMiners: 950,
     totalHashrate: 2847,
@@ -63,15 +66,29 @@ export default function HomePage() {
               <Link href="/whitepaper" className="text-gray-300 hover:text-white transition">
                 Whitepaper
               </Link>
-              <Link href="/affiliates" className="text-gray-300 hover:text-white transition">
-                Affiliati
-              </Link>
-              <Link href="/dashboard" className="text-gray-300 hover:text-white transition">
-                Dashboard
-              </Link>
-              <Link href="/dashboard" className="btn-primary">
-                Accedi
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link href="/affiliates" className="text-gray-300 hover:text-white transition">
+                    Affiliati
+                  </Link>
+                  <Link href="/dashboard" className="text-gray-300 hover:text-white transition">
+                    Dashboard
+                  </Link>
+                  <button onClick={logout} className="btn-secondary text-sm">
+                    <LogOut className="inline w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth/login" className="text-gray-300 hover:text-white transition">
+                    Accedi
+                  </Link>
+                  <Link href="/auth/register" className="btn-primary">
+                    Registrati
+                  </Link>
+                </>
+              )}
             </motion.div>
           </div>
         </div>

@@ -1,97 +1,103 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+// src/app/api/referral/stats/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
-    if (!token) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    // Verifica auth
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = decoded.userId;
+    // Get user stats dalla view
+    const { data: stats, error: statsError } = await supabase
+      .from('user_referral_stats')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
-    // Get user referral stats
-    const statsResult = await query(
-      `SELECT * FROM user_referral_stats WHERE user_id = $1`,
-      [userId]
-    );
+    if (statsError) {
+      console.error('Stats error:', statsError);
+    }
 
-    const stats = statsResult.rows[0] || {
-      direct_referrals: 0,
-      total_referrals: 0,
-      network_size: 0,
-      referral_earnings: 0,
-      level1_earnings: 0,
-      level2_earnings: 0,
-      level3_earnings: 0,
-      structure_bonus_earned: false,
-      structure_bonus_amount: 0
-    };
+    // Get referral tree usando RPC
+    const { data: treeData, error: treeError } = await supabase
+      .rpc('get_referral_tree', { root_user_id: user.id, max_level: 3 });
 
-    // Get referral tree (3 levels)
-    const treeResult = await query(
-      `SELECT * FROM get_referral_tree($1, 3)`,
-      [userId]
-    );
-
-    // Organize tree by levels
     const tree = {
-      level1: treeResult.rows.filter(r => r.level === 1),
-      level2: treeResult.rows.filter(r => r.level === 2),
-      level3: treeResult.rows.filter(r => r.level === 3)
+      level1: treeData?.filter((r: any) => r.level === 1) || [],
+      level2: treeData?.filter((r: any) => r.level === 2) || [],
+      level3: treeData?.filter((r: any) => r.level === 3) || []
     };
 
     // Get recent commissions
-    const commissionsResult = await query(
-      `SELECT 
-        rc.*,
-        u.email as from_email,
-        u.referral_code as from_code
-       FROM referral_commissions rc
-       JOIN users u ON u.id = rc.from_user_id
-       WHERE rc.user_id = $1
-       ORDER BY rc.created_at DESC
-       LIMIT 20`,
-      [userId]
-    );
+    const { data: commissions, error: commissionsError } = await supabase
+      .from('referral_commissions')
+      .select(`
+        *,
+        from_user:users!referral_commissions_from_user_id_fkey(email)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    // Get referral settings
-    const settingsResult = await query(
-      `SELECT * FROM referral_settings ORDER BY id DESC LIMIT 1`
-    );
+    // Get settings
+    const { data: settings, error: settingsError } = await supabase
+      .from('referral_settings')
+      .select('*')
+      .single();
 
-    const settings = settingsResult.rows[0] || {
-      program_active: false,
-      program_end_date: null,
-      structure_bonus_threshold: 50,
-      structure_bonus_amount: 500
-    };
+    // Get referral code
+    const { data: userData } = await supabase
+      .from('users')
+      .select('referral_code')
+      .eq('id', user.id)
+      .single();
 
-    // Get user referral code
-    const userResult = await query(
-      `SELECT referral_code FROM users WHERE id = $1`,
-      [userId]
-    );
+    const referralLink = `${process.env.NEXT_PUBLIC_APP_URL}/signup?ref=${userData?.referral_code}`;
 
     return NextResponse.json({
-      success: true,
-      referral_code: userResult.rows[0]?.referral_code,
-      stats,
+      referral_code: userData?.referral_code,
+      referral_link: referralLink,
+      stats: stats || {
+        direct_referrals: 0,
+        total_referrals: 0,
+        network_size: 0,
+        referral_earnings: 0,
+        structure_bonus_earned: false,
+        level1_earnings: 0,
+        level2_earnings: 0,
+        level3_earnings: 0,
+        structure_bonus_amount: 0
+      },
       tree,
-      commissions: commissionsResult.rows,
-      settings,
-      referral_link: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/register?ref=${userResult.rows[0]?.referral_code}`
+      commissions: commissions || [],
+      settings: settings || {
+        level1_commission: 10,
+        level2_commission: 5,
+        level3_commission: 2.5,
+        program_active: true,
+        structure_bonus_threshold: 50,
+        structure_bonus_amount: 500
+      }
     });
+
   } catch (error) {
-    console.error('Error fetching referral stats:', error);
+    console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Errore nel recupero statistiche' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

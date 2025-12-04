@@ -1,29 +1,41 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+// src/app/api/admin/referral-settings/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST(request: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
-    if (!token) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    // Verifica auth
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
-    }
-
-    // Check if admin
-    const userResult = await query(
-      `SELECT is_admin FROM users WHERE id = $1`,
-      [decoded.userId]
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseAnon = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-
-    if (!userResult.rows[0]?.is_admin) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    
+    const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verifica admin
+    const { data: userData } = await supabaseAnon
+      .from('users')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData?.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get body
     const body = await request.json();
     const {
       level1_commission,
@@ -35,39 +47,98 @@ export async function POST(request: Request) {
       program_end_date
     } = body;
 
-    // Update settings
-    const result = await query(
-      `UPDATE referral_settings
-       SET level1_commission = $1,
-           level2_commission = $2,
-           level3_commission = $3,
-           structure_bonus_threshold = $4,
-           structure_bonus_amount = $5,
-           program_active = $6,
-           program_end_date = $7,
-           updated_at = NOW()
-       WHERE id = 1
-       RETURNING *`,
-      [
+    // Update settings usando service role
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data, error } = await supabaseAdmin
+      .from('referral_settings')
+      .update({
         level1_commission,
         level2_commission,
         level3_commission,
         structure_bonus_threshold,
         structure_bonus_amount,
         program_active,
-        program_end_date
-      ]
-    );
+        program_end_date,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', 1)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Update error:', error);
+      return NextResponse.json(
+        { error: 'Failed to update settings' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      settings: result.rows[0],
-      message: 'Impostazioni aggiornate con successo'
+      settings: data,
+      message: 'Settings updated successfully'
     });
+
   } catch (error) {
-    console.error('Error updating referral settings:', error);
+    console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Errore nell\'aggiornamento delle impostazioni' },
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    // Verifica auth
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verifica admin
+    const { data: userData } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData?.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get settings
+    const { data: settings, error } = await supabase
+      .from('referral_settings')
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Get settings error:', error);
+      return NextResponse.json(
+        { error: 'Failed to get settings' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ settings });
+
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

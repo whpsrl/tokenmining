@@ -1,91 +1,107 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+// src/app/api/admin/referral-stats/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
-    if (!token) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    // Verifica auth
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if admin
-    const userResult = await query(
-      `SELECT is_admin FROM users WHERE id = $1`,
-      [decoded.userId]
-    );
+    // Verifica admin
+    const { data: userData } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
 
-    if (!userResult.rows[0]?.is_admin) {
-      return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    if (!userData?.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get overall stats
-    const statsResult = await query(`SELECT * FROM admin_referral_stats`);
-    const stats = statsResult.rows[0];
+    // Get admin stats dalla view
+    const { data: stats } = await supabase
+      .from('admin_referral_stats')
+      .select('*')
+      .single();
 
     // Get settings
-    const settingsResult = await query(
-      `SELECT * FROM referral_settings ORDER BY id DESC LIMIT 1`
-    );
-    const settings = settingsResult.rows[0];
+    const { data: settings } = await supabase
+      .from('referral_settings')
+      .select('*')
+      .single();
 
     // Get top performers
-    const topPerformersResult = await query(
-      `SELECT 
-        u.id,
-        u.email,
-        u.referral_code,
-        u.direct_referrals,
-        u.total_referrals,
-        u.network_size,
-        u.referral_earnings,
-        u.structure_bonus_earned
-       FROM users u
-       WHERE u.direct_referrals > 0
-       ORDER BY u.network_size DESC, u.referral_earnings DESC
-       LIMIT 10`
-    );
+    const { data: topPerformers } = await supabase
+      .from('user_referral_stats')
+      .select('*')
+      .order('network_size', { ascending: false })
+      .limit(10);
 
     // Get recent commissions
-    const recentCommissionsResult = await query(
-      `SELECT 
-        rc.*,
-        u1.email as earner_email,
-        u2.email as buyer_email
-       FROM referral_commissions rc
-       JOIN users u1 ON u1.id = rc.user_id
-       JOIN users u2 ON u2.id = rc.from_user_id
-       ORDER BY rc.created_at DESC
-       LIMIT 50`
-    );
+    const { data: recentCommissions } = await supabase
+      .from('referral_commissions')
+      .select(`
+        *,
+        earner:users!referral_commissions_user_id_fkey(email),
+        buyer:users!referral_commissions_from_user_id_fkey(email)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     // Get structure bonuses
-    const bonusesResult = await query(
-      `SELECT 
-        sb.*,
-        u.email,
-        u.network_size
-       FROM structure_bonuses sb
-       JOIN users u ON u.id = sb.user_id
-       ORDER BY sb.awarded_at DESC
-       LIMIT 20`
-    );
+    const { data: structureBonuses } = await supabase
+      .from('structure_bonuses')
+      .select(`
+        *,
+        user:users(email, referral_code)
+      `)
+      .order('awarded_at', { ascending: false })
+      .limit(20);
 
     return NextResponse.json({
-      success: true,
-      stats,
-      settings,
-      topPerformers: topPerformersResult.rows,
-      recentCommissions: recentCommissionsResult.rows,
-      structureBonuses: bonusesResult.rows
+      stats: stats || {
+        total_users: 0,
+        referred_users: 0,
+        total_commissions: 0,
+        total_commissions_paid: 0,
+        structure_bonuses_awarded: 0,
+        total_bonuses_paid: 0,
+        level1_connections: 0,
+        level2_connections: 0,
+        level3_connections: 0
+      },
+      settings: settings || {
+        level1_commission: 10,
+        level2_commission: 5,
+        level3_commission: 2.5,
+        program_active: true,
+        structure_bonus_threshold: 50,
+        structure_bonus_amount: 500
+      },
+      topPerformers: topPerformers || [],
+      recentCommissions: recentCommissions || [],
+      structureBonuses: structureBonuses || []
     });
+
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json({ error: 'Errore' }, { status: 500 });
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

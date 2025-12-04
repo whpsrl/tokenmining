@@ -21,6 +21,17 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
+interface Transaction {
+  id: number | string;
+  type: string;
+  amount: number;
+  price: number;
+  total: number;
+  status: string;
+  txHash?: string;
+  date: string;
+}
+
 export default function DashboardPage() {
   const { user: authUser, isAuthenticated, loading, logout } = useAuth();
   const router = useRouter();
@@ -92,7 +103,7 @@ export default function DashboardPage() {
     monthlyRewards: 0 // Calculate based on holdings
   };
 
-  const transactions = dashboardData?.transactions || [];
+  const transactions: Transaction[] = dashboardData?.transactions || [];
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

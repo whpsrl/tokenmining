@@ -87,29 +87,29 @@ export default function TokenSalePage() {
 
   const saleStages = [
     {
-      stage: 'Private Sale',
-      price: '$0.08',
-      discount: '60%',
+      stage: 'Fase 1 - Private',
+      price: '$0.06',
+      discount: '70%',
       status: 'completed',
-      raised: '2.5M'
+      raised: '$800,000'
     },
     {
-      stage: 'Pre-Sale',
+      stage: 'Fase 2 - Pre-Sale',
       price: '$0.10',
       discount: '50%',
       status: 'active',
-      raised: '3.8M',
-      target: '5M'
+      raised: '$347,500',
+      target: '$1,500,000'
     },
     {
-      stage: 'Public Sale',
+      stage: 'Fase 3 - Public',
       price: '$0.15',
       discount: '25%',
       status: 'upcoming',
-      target: '10M'
+      target: '$1,500,000'
     },
     {
-      stage: 'Launch',
+      stage: 'Lancio',
       price: '$0.20',
       discount: '-',
       status: 'upcoming',
@@ -137,7 +137,7 @@ export default function TokenSalePage() {
     {
       icon: Lock,
       title: 'Vesting Graduale',
-      description: '10% unlock immediato, resto distribuito in 6 mesi',
+      description: 'Fase 2: 10% unlock immediato, 90% distribuito in 9 mesi',
       color: 'text-accent-400'
     },
     {
@@ -191,8 +191,8 @@ export default function TokenSalePage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto mb-12">
-              Investi nel futuro del mining AI-powered. Pre-sale limitata con bonus esclusivi 
-              e accesso prioritario alla piattaforma.
+              3 fasi, 3 prezzi. Prima entri, più risparmi. Hardware reale da $2.5M. 
+              Profitti reali da $77k/mese.
             </p>
 
             {/* Countdown */}

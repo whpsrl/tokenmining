@@ -1,339 +1,421 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { 
   Users, 
-  TrendingUp, 
+  Network, 
   DollarSign, 
+  Award, 
   Copy, 
   CheckCircle,
-  Gift,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Award
+  Target,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { toast } from 'react-hot-toast';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface ReferralStats {
-  referralCode: string;
-  directReferrals: number;
-  totalReferrals: number;
-  networkSize: number;
-  totalEarnings: number;
-  commissionsByLevel: {
-    level1: { count: number; earned: number };
-    level2: { count: number; earned: number };
-    level3: { count: number; earned: number };
-  };
-  structureBonus: {
-    earned: boolean;
-    info: any;
-    threshold: number;
-    progress: number;
-  };
-  settings: {
-    level1Rate: number;
-    level2Rate: number;
-    level3Rate: number;
-    programActive: boolean;
-    programEndDate: string;
-  };
+  referral_code: string;
+  direct_referrals: number;
+  total_referrals: number;
+  network_size: number;
+  referral_earnings: number;
+  structure_bonus_earned: boolean;
+  level1_earnings: number;
+  level2_earnings: number;
+  level3_earnings: number;
+  structure_bonus_amount: number;
 }
 
 interface TreeNode {
-  id: number;
+  user_id: string;
   email: string;
-  referralCode: string;
-  directReferrals: number;
-  totalReferrals: number;
-  totalPurchases: number;
-  purchaseCount: number;
-  joinedAt: string;
-  children: TreeNode[];
+  level: number;
+  total_purchases: number;
+  created_at: string;
+}
+
+interface ReferralSettings {
+  level1_commission: number;
+  level2_commission: number;
+  level3_commission: number;
+  structure_bonus_threshold: number;
+  structure_bonus_amount: number;
+  program_active: boolean;
+  program_end_date: string | null;
+}
+
+interface Commission {
+  id: number;
+  level: number;
+  commission_amount: number;
+  purchase_amount: number;
+  created_at: string;
+  from_user: { email: string };
 }
 
 export default function AffiliatesPage() {
-  const { token } = useAuth();
   const [stats, setStats] = useState<ReferralStats | null>(null);
-  const [tree, setTree] = useState<TreeNode[]>([]);
+  const [tree, setTree] = useState<{ level1: TreeNode[], level2: TreeNode[], level3: TreeNode[] }>({ level1: [], level2: [], level3: [] });
+  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [settings, setSettings] = useState<ReferralSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+  const [referralLink, setReferralLink] = useState('');
 
   useEffect(() => {
-    if (token) {
-      fetchStats();
-      fetchTree();
-    }
-  }, [token]);
+    fetchData();
+  }, []);
 
-  const fetchStats = async () => {
+  async function fetchData() {
     try {
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // Fetch stats
       const response = await fetch('/api/referral/stats', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
       });
-      const data = await response.json();
-      if (data.success) {
+
+      if (response.ok) {
+        const data = await response.json();
         setStats(data.stats);
+        setTree(data.tree);
+        setCommissions(data.commissions);
+        setSettings(data.settings);
+        setReferralLink(data.referral_link);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
-      toast.error('Errore nel caricamento');
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchTree = async () => {
-    try {
-      const response = await fetch('/api/referral/tree', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setTree(data.tree);
-      }
-    } catch (error) {
-      console.error('Error fetching tree:', error);
-    }
-  };
-
-  const copyReferralLink = () => {
-    if (!stats) return;
-    const link = `${window.location.origin}/auth/register?ref=${stats.referralCode}`;
-    navigator.clipboard.writeText(link);
+  function copyLink() {
+    navigator.clipboard.writeText(referralLink);
     setCopied(true);
-    toast.success('Link copiato!');
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const toggleNode = (nodeId: number) => {
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
-
-  const renderTreeNode = (node: TreeNode, level: number) => {
-    const isExpanded = expandedNodes.has(node.id);
-    const hasChildren = node.children && node.children.length > 0;
-    const bgColor = level === 1 ? 'bg-primary-600/20' : level === 2 ? 'bg-blue-600/20' : 'bg-purple-600/20';
-    const borderColor = level === 1 ? 'border-primary-500' : level === 2 ? 'border-blue-500' : 'border-purple-500';
-
-    return (
-      <motion.div
-        key={node.id}
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="mb-2"
-        style={{ marginLeft: level > 1 ? '2rem' : '0' }}
-      >
-        <div className={`${bgColor} border ${borderColor} rounded-lg p-4`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {hasChildren && (
-                <button
-                  onClick={() => toggleNode(node.id)}
-                  className="text-gray-400 hover:text-white transition"
-                >
-                  {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                </button>
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-semibold">{node.email}</span>
-                  <span className="text-xs px-2 py-1 bg-white/10 rounded">L{level}</span>
-                </div>
-                <div className="text-sm text-gray-400 mt-1">
-                  {node.directReferrals} diretti • ${node.totalPurchases.toFixed(2)} spesi
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-white">${node.totalPurchases.toFixed(2)}</div>
-              <div className="text-xs text-gray-400">{node.purchaseCount} acquisti</div>
-            </div>
-          </div>
-        </div>
-        
-        {hasChildren && isExpanded && (
-          <div className="mt-2">
-            {node.children.map(child => renderTreeNode(child, level + 1))}
-          </div>
-        )}
-      </motion.div>
-    );
-  };
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
-        <div className="text-white text-xl">Caricamento...</div>
+      <div className="min-h-screen bg-dark-50 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
       </div>
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
-        <div className="text-white text-xl">Errore</div>
-      </div>
-    );
-  }
-
-  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?ref=${stats.referralCode}`;
+  const isProgramActive = settings?.program_active && 
+    (!settings?.program_end_date || new Date(settings.program_end_date) > new Date());
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50">
-      <div className="container mx-auto px-6 py-12 max-w-7xl">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Programma Affiliati - 3 Livelli</h1>
-          <p className="text-gray-400">Guadagna commissioni su 3 livelli invitando amici</p>
-          {!stats.settings.programActive && (
-            <div className="mt-4 p-4 bg-red-600/20 border border-red-500 rounded-lg">
-              <p className="text-red-300">⚠️ Programma terminato</p>
-            </div>
-          )}
-          {stats.settings.programEndDate && stats.settings.programActive && (
-            <div className="mt-4 p-4 bg-accent-600/20 border border-accent-500 rounded-lg">
-              <p className="text-accent-300 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Finisce: {new Date(stats.settings.programEndDate).toLocaleDateString('it-IT')}
-              </p>
-            </div>
-          )}
-        </motion.div>
-
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card">
-            <Users className="w-8 h-8 text-primary-400 mb-2" />
-            <div className="text-2xl font-bold text-white mb-1">{stats.directReferrals}</div>
-            <div className="text-sm text-gray-400">Diretti (L1)</div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card">
-            <TrendingUp className="w-8 h-8 text-blue-400 mb-2" />
-            <div className="text-2xl font-bold text-white mb-1">{stats.networkSize}</div>
-            <div className="text-sm text-gray-400">Network (3 livelli)</div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card">
-            <DollarSign className="w-8 h-8 text-green-400 mb-2" />
-            <div className="text-2xl font-bold text-white mb-1">${stats.totalEarnings.toFixed(2)}</div>
-            <div className="text-sm text-gray-400">Guadagno Totale</div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="card">
-            <Gift className="w-8 h-8 text-accent-400 mb-2" />
-            <div className="text-2xl font-bold text-white mb-1">
-              {stats.structureBonus.earned ? '✓ Ricevuto' : `${stats.structureBonus.progress.toFixed(0)}%`}
-            </div>
-            <div className="text-sm text-gray-400">Premio Struttura</div>
-          </motion.div>
+    <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 py-12 px-6">
+      <div className="container mx-auto max-w-6xl">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">
+            <span className="gradient-text">Programma Referral</span>
+          </h1>
+          <p className="text-white/70">Sistema a 3 livelli - Guadagna invitando amici</p>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="card mb-8">
-          <h3 className="text-xl font-bold text-white mb-4">Il Tuo Link Referral</h3>
+        {/* Program Status Warning */}
+        {!isProgramActive && (
+          <div className="card-dark p-6 mb-8 border-2 border-red-500/50 bg-red-500/10">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400" />
+              <div>
+                <h3 className="text-xl font-bold text-red-400">Programma Terminato</h3>
+                <p className="text-white/70">Il programma referral è attualmente disattivato.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Referral Link */}
+        <div className="card-dark p-8 mb-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Il Tuo Link Referral</h2>
           <div className="flex gap-3">
             <input
               type="text"
               value={referralLink}
               readOnly
-              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white"
+              className="flex-1 bg-dark-100 border border-white/10 rounded-lg px-4 py-3 text-white"
             />
-            <button onClick={copyReferralLink} className="btn-primary flex items-center gap-2">
-              {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-              {copied ? 'Copiato!' : 'Copia'}
+            <button
+              onClick={copyLink}
+              className="btn-primary px-6 py-3 rounded-lg flex items-center gap-2"
+            >
+              {copied ? (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Copiato!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-5 h-5" />
+                  Copia
+                </>
+              )}
             </button>
           </div>
-          <div className="mt-4 p-4 bg-primary-600/10 rounded-lg">
-            <p className="text-sm text-gray-300">
-              <strong>Commissioni:</strong> L1: {stats.settings.level1Rate}% • L2: {stats.settings.level2Rate}% • L3: {stats.settings.level3Rate}%
-            </p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="card-dark p-6"
+          >
+            <Users className="w-10 h-10 text-primary-400 mb-3" />
+            <div className="text-3xl font-bold text-white mb-1">
+              {stats?.direct_referrals || 0}
+            </div>
+            <div className="text-sm text-white/60">Referral Diretti</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="card-dark p-6"
+          >
+            <Network className="w-10 h-10 text-accent-400 mb-3" />
+            <div className="text-3xl font-bold text-white mb-1">
+              {stats?.network_size || 0}
+            </div>
+            <div className="text-sm text-white/60">Rete Totale</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="card-dark p-6"
+          >
+            <DollarSign className="w-10 h-10 text-green-400 mb-3" />
+            <div className="text-3xl font-bold text-white mb-1">
+              ${stats?.referral_earnings.toFixed(2) || '0.00'}
+            </div>
+            <div className="text-sm text-white/60">Guadagni Totali</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="card-dark p-6"
+          >
+            <Award className="w-10 h-10 text-yellow-400 mb-3" />
+            <div className="text-3xl font-bold text-white mb-1">
+              {stats?.structure_bonus_earned ? '✓' : `${stats?.network_size || 0}/${settings?.structure_bonus_threshold || 50}`}
+            </div>
+            <div className="text-sm text-white/60">Premio Struttura</div>
+          </motion.div>
+        </div>
+
+        {/* Commission Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="card-dark p-6 border-l-4 border-primary-400">
+            <div className="text-sm text-white/60 mb-2">Livello 1 ({settings?.level1_commission}%)</div>
+            <div className="text-2xl font-bold text-white mb-1">
+              ${stats?.level1_earnings.toFixed(2) || '0.00'}
+            </div>
+            <div className="text-xs text-white/40">Da referral diretti</div>
           </div>
-        </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="card mb-8">
-          <h3 className="text-xl font-bold text-white mb-6">Dettaglio Commissioni</h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-primary-600/10 border border-primary-500/30 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-primary-400 font-semibold">Livello 1</span>
-                <span className="text-sm text-gray-400">{stats.settings.level1Rate}%</span>
-              </div>
-              <div className="text-2xl font-bold text-white mb-1">${stats.commissionsByLevel.level1.earned.toFixed(2)}</div>
-              <div className="text-sm text-gray-400">{stats.commissionsByLevel.level1.count} commissioni</div>
+          <div className="card-dark p-6 border-l-4 border-accent-400">
+            <div className="text-sm text-white/60 mb-2">Livello 2 ({settings?.level2_commission}%)</div>
+            <div className="text-2xl font-bold text-white mb-1">
+              ${stats?.level2_earnings.toFixed(2) || '0.00'}
             </div>
-
-            <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-blue-400 font-semibold">Livello 2</span>
-                <span className="text-sm text-gray-400">{stats.settings.level2Rate}%</span>
-              </div>
-              <div className="text-2xl font-bold text-white mb-1">${stats.commissionsByLevel.level2.earned.toFixed(2)}</div>
-              <div className="text-sm text-gray-400">{stats.commissionsByLevel.level2.count} commissioni</div>
-            </div>
-
-            <div className="bg-purple-600/10 border border-purple-500/30 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-purple-400 font-semibold">Livello 3</span>
-                <span className="text-sm text-gray-400">{stats.settings.level3Rate}%</span>
-              </div>
-              <div className="text-2xl font-bold text-white mb-1">${stats.commissionsByLevel.level3.earned.toFixed(2)}</div>
-              <div className="text-sm text-gray-400">{stats.commissionsByLevel.level3.count} commissioni</div>
-            </div>
+            <div className="text-xs text-white/40">Da referral dei referral</div>
           </div>
-        </motion.div>
 
-        {!stats.structureBonus.earned && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="card mb-8">
-            <div className="flex items-center justify-between mb-4">
+          <div className="card-dark p-6 border-l-4 border-green-400">
+            <div className="text-sm text-white/60 mb-2">Livello 3 ({settings?.level3_commission}%)</div>
+            <div className="text-2xl font-bold text-white mb-1">
+              ${stats?.level3_earnings.toFixed(2) || '0.00'}
+            </div>
+            <div className="text-xs text-white/40">Da livello 3 della rete</div>
+          </div>
+        </div>
+
+        {/* Structure Bonus Progress */}
+        {!stats?.structure_bonus_earned && settings && (
+          <div className="card-dark p-8 mb-8 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-400/20">
+            <div className="flex items-center gap-4 mb-4">
+              <Target className="w-10 h-10 text-yellow-400" />
               <div>
                 <h3 className="text-xl font-bold text-white">Premio Struttura</h3>
-                <p className="text-sm text-gray-400">Raggiungi {stats.structureBonus.threshold} referral</p>
-              </div>
-              <Award className="w-12 h-12 text-accent-400" />
-            </div>
-            <div className="mb-2">
-              <div className="flex justify-between text-sm text-gray-300 mb-1">
-                <span>{stats.networkSize} / {stats.structureBonus.threshold}</span>
-                <span>{stats.structureBonus.progress.toFixed(0)}%</span>
-              </div>
-              <div className="h-4 bg-white/10 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${stats.structureBonus.progress}%` }}
-                  transition={{ duration: 1, delay: 0.8 }}
-                  className="h-full bg-gradient-to-r from-accent-600 to-accent-400"
-                />
+                <p className="text-white/70">Raggiungi {settings.structure_bonus_threshold} persone nella rete e ricevi ${settings.structure_bonus_amount} bonus</p>
               </div>
             </div>
-            <p className="text-accent-300 font-semibold text-center mt-4">Premio: $500.00</p>
-          </motion.div>
+            <div className="relative w-full h-4 bg-dark-100 rounded-full overflow-hidden">
+              <div 
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-500"
+                style={{ width: `${Math.min((stats?.network_size || 0) / settings.structure_bonus_threshold * 100, 100)}%` }}
+              />
+            </div>
+            <div className="mt-3 text-center text-white/70">
+              <span className="font-bold text-white">{stats?.network_size || 0}</span> / {settings.structure_bonus_threshold} persone
+            </div>
+          </div>
         )}
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="card">
-          <h3 className="text-xl font-bold text-white mb-6">Network (Albero a 3 Livelli)</h3>
-          {tree.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">Ancora nessun referral</p>
-              <p className="text-sm text-gray-500 mt-2">Condividi il tuo link!</p>
+        {/* Structure Bonus Earned */}
+        {stats?.structure_bonus_earned && (
+          <div className="card-dark p-8 mb-8 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-400/20">
+            <div className="flex items-center gap-4">
+              <Award className="w-12 h-12 text-green-400" />
+              <div>
+                <h3 className="text-2xl font-bold text-green-400">🎉 Premio Struttura Ricevuto!</h3>
+                <p className="text-white/70">Hai ricevuto ${stats.structure_bonus_amount} per aver costruito una rete di {stats.network_size} persone</p>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {tree.map(node => renderTreeNode(node, 1))}
+          </div>
+        )}
+
+        {/* Referral Tree */}
+        <div className="space-y-6 mb-8">
+          {/* Level 1 */}
+          <div className="card-dark p-6">
+            <h3 className="text-xl font-bold text-primary-400 mb-4 flex items-center gap-2">
+              <Users className="w-6 h-6" />
+              Livello 1 - Referral Diretti ({tree.level1.length})
+            </h3>
+            {tree.level1.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tree.level1.map((node) => (
+                  <div key={node.user_id} className="bg-dark-100 p-4 rounded-lg border border-primary-400/20">
+                    <div className="text-white font-medium mb-2">{node.email}</div>
+                    <div className="text-sm text-white/60">
+                      Acquisti: ${node.total_purchases.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-white/40 mt-1">
+                      {new Date(node.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-white/40 text-center py-8">Ancora nessun referral diretto</div>
+            )}
+          </div>
+
+          {/* Level 2 */}
+          <div className="card-dark p-6">
+            <h3 className="text-xl font-bold text-accent-400 mb-4 flex items-center gap-2">
+              <Network className="w-6 h-6" />
+              Livello 2 - Referral dei Referral ({tree.level2.length})
+            </h3>
+            {tree.level2.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tree.level2.map((node) => (
+                  <div key={node.user_id} className="bg-dark-100 p-4 rounded-lg border border-accent-400/20">
+                    <div className="text-white font-medium mb-2">{node.email}</div>
+                    <div className="text-sm text-white/60">
+                      Acquisti: ${node.total_purchases.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-white/40 mt-1">
+                      {new Date(node.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-white/40 text-center py-8">Nessun referral di secondo livello</div>
+            )}
+          </div>
+
+          {/* Level 3 */}
+          <div className="card-dark p-6">
+            <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-6 h-6" />
+              Livello 3 - Rete Estesa ({tree.level3.length})
+            </h3>
+            {tree.level3.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tree.level3.map((node) => (
+                  <div key={node.user_id} className="bg-dark-100 p-4 rounded-lg border border-green-400/20">
+                    <div className="text-white font-medium mb-2">{node.email}</div>
+                    <div className="text-sm text-white/60">
+                      Acquisti: ${node.total_purchases.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-white/40 mt-1">
+                      {new Date(node.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-white/40 text-center py-8">Nessun referral di terzo livello</div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Commissions */}
+        {commissions.length > 0 && (
+          <div className="card-dark p-6">
+            <h3 className="text-xl font-bold text-white mb-6">Commissioni Recenti</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 px-4 text-white/60 font-medium">Data</th>
+                    <th className="text-left py-3 px-4 text-white/60 font-medium">Da</th>
+                    <th className="text-left py-3 px-4 text-white/60 font-medium">Livello</th>
+                    <th className="text-right py-3 px-4 text-white/60 font-medium">Acquisto</th>
+                    <th className="text-right py-3 px-4 text-white/60 font-medium">Commissione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commissions.map((comm) => (
+                    <tr key={comm.id} className="border-b border-white/5">
+                      <td className="py-3 px-4 text-white/70">
+                        {new Date(comm.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4 text-white">{comm.from_user.email}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-3 py-1 rounded-full text-sm ${
+                          comm.level === 1 ? 'bg-primary-400/10 text-primary-400' :
+                          comm.level === 2 ? 'bg-accent-400/10 text-accent-400' :
+                          'bg-green-400/10 text-green-400'
+                        }`}>
+                          Livello {comm.level}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-white/70">
+                        ${comm.purchase_amount.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-4 text-right text-green-400 font-bold">
+                        +${comm.commission_amount.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </motion.div>
+          </div>
+        )}
+
       </div>
     </div>
   );

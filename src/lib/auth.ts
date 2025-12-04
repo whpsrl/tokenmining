@@ -29,6 +29,9 @@ export async function verifyAuth(request: NextRequest) {
   }
 }
 
+// Export verifyToken come alias per compatibilità
+export const verifyToken = verifyAuth;
+
 export async function verifyAdmin(request: NextRequest) {
   const { error, user } = await verifyAuth(request);
   

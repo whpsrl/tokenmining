@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Cpu, TrendingUp, Users, Shield, ArrowRight, Sparkles } from 'lucide-react';
 
-export default function ReferralLandingPage() {
+function ReferralLandingContent() {
   const searchParams = useSearchParams();
   const [referralCode, setReferralCode] = useState('');
 
@@ -174,5 +174,17 @@ export default function ReferralLandingPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function ReferralLandingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
+        <div className="spinner"></div>
+      </div>
+    }>
+      <ReferralLandingContent />
+    </Suspense>
   );
 }

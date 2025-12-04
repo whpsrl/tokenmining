@@ -24,6 +24,8 @@ import { useRouter } from 'next/navigation';
 export default function DashboardPage() {
   const { user: authUser, isAuthenticated, loading, logout } = useAuth();
   const router = useRouter();
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   // Redirect se non autenticato
   useEffect(() => {
@@ -31,21 +33,6 @@ export default function DashboardPage() {
       router.push('/auth/login');
     }
   }, [isAuthenticated, loading, router]);
-
-  // Mostra loading
-  if (loading || !authUser) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner mb-4"></div>
-          <p className="text-gray-400">Caricamento...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [dataLoading, setDataLoading] = useState(true);
 
   // Fetch real dashboard data
   useEffect(() => {
@@ -77,12 +64,13 @@ export default function DashboardPage() {
     }
   }, [authUser]);
 
-  if (dataLoading) {
+  // Mostra loading
+  if (loading || !authUser || dataLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
         <div className="text-center">
           <div className="spinner mb-4"></div>
-          <p className="text-gray-400">Caricamento dati...</p>
+          <p className="text-gray-400">Caricamento...</p>
         </div>
       </div>
     );
@@ -105,17 +93,6 @@ export default function DashboardPage() {
   };
 
   const transactions = dashboardData?.transactions || [];
-    },
-    {
-      id: 3,
-      type: 'referral',
-      amount: 500,
-      price: 0.11,
-      total: 55,
-      date: '2025-01-05',
-      status: 'completed'
-    }
-  ]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

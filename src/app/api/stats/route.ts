@@ -71,17 +71,17 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       stats: {
-        totalUsers: totalUsers || 0,
-        totalHolders: totalUsers || 0, // Holders = users che hanno account
-        totalPurchases: totalPurchases || 0,
+        totalUsers: totalUsers ?? 0,
+        totalHolders: totalUsers ?? 0,
+        totalPurchases: totalPurchases ?? 0,
         totalRaised: totalRaised,
         totalTokensSold: totalTokensSold,
-        totalReferrals: totalReferrals || 0,
-        miningRequests: miningRequests || 0,
-        activeMining: activeMining || 0,
-        affiliateClicks: affiliateClicks || 0,
+        totalReferrals: totalReferrals ?? 0,
+        miningRequests: miningRequests ?? 0,
+        activeMining: activeMining ?? 0,
+        affiliateClicks: affiliateClicks ?? 0,
         // Calcoli derivati
-        avgPurchaseSize: totalPurchases > 0 ? totalRaised / totalPurchases : 0,
+        avgPurchaseSize: (totalPurchases ?? 0) > 0 ? totalRaised / (totalPurchases ?? 0) : 0,
         tokenPrice: 0.10, // Current price from config
         presaleTarget: 5000000, // $5M target
         presaleProgress: (totalRaised / 5000000) * 100,

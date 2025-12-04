@@ -1,10 +1,7 @@
 # Dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.js
-
-# Testing
-/coverage
 
 # Next.js
 /.next/
@@ -24,30 +21,11 @@ yarn-error.log*
 
 # Local env files
 .env*.local
-.env
-.env.development
-.env.production
+.env.local
 
 # Vercel
 .vercel
 
-# TypeScript
+# Typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# IDE
-.vscode
-.idea
-*.swp
-*.swo
-*~
-
-# Hardhat
-cache/
-artifacts/
-typechain/
-typechain-types/
-
-# Logs
-logs
-*.log

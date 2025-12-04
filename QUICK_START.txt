@@ -1,0 +1,46 @@
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║         🚀 HASHBURST TOKEN - QUICK START 🚀             ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝
+
+
+✅ STEP 1: SUPABASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. supabase.com → New Project
+2. SQL Editor → Copia DATABASE.sql → Run
+3. Settings → API → Copia URL + Keys
+
+
+✅ STEP 2: INSTALL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+npm install
+cp .env.local.example .env.local
+
+# Modifica .env.local con le tue credenziali
+
+
+✅ STEP 3: RUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+npm run dev
+
+→ http://localhost:3000
+
+
+✅ STEP 4: DEPLOY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+vercel
+# oppure push su GitHub → Import su Vercel
+
+
+═══════════════════════════════════════════════════════════
+
+                  🎉 FATTO! 🎉
+
+     Sistema 3 Livelli Attivo! 💰🚀
+
+═══════════════════════════════════════════════════════════

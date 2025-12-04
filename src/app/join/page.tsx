@@ -1,69 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, ArrowLeft, CheckCircle, Mail, User, Wallet, MessageSquare } from 'lucide-react';
+import { Cpu, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'react-hot-toast';
 
 export default function JoinPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    wallet: '',
-    message: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/mining-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-        toast.success('Richiesta inviata con successo!');
-      } else {
-        throw new Error('Errore invio richiesta');
-      }
-    } catch (error) {
-      toast.error('Errore durante l\'invio. Riprova.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-dark rounded-3xl p-12 max-w-2xl text-center"
-        >
-          <div className="w-20 h-20 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-4xl font-bold mb-4 text-white">Richiesta Ricevuta!</h2>
-          <p className="text-xl text-gray-300 mb-8">
-            Ti contatteremo presto via email con i dettagli per partecipare al nostro 
-            programma di mining gratuito e al prossimo webinar esclusivo.
-          </p>
-          <Link href="/" className="btn-primary">
-            Torna alla Home
-          </Link>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50">
       {/* Navigation */}
@@ -152,6 +93,10 @@ export default function JoinPage() {
                 </div>
               </div>
 
+              <Link href="/auth/register?source=free-mining" className="btn-primary text-lg w-full sm:w-auto">
+                Partecipa Ora - È Gratis!
+              </Link>
+
               <div className="glass rounded-2xl p-6">
                 <h4 className="font-semibold text-white mb-3">💎 Bonus Iscrizione</h4>
                 <p className="text-gray-300 text-sm">
@@ -161,106 +106,78 @@ export default function JoinPage() {
               </div>
             </motion.div>
 
-            {/* Right Column - Form */}
+            {/* Right Column - Stats & CTA */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="glass-dark rounded-3xl p-8 lg:sticky lg:top-24"
+              className="space-y-6"
             >
-              <h2 className="text-3xl font-bold mb-6 text-white">
-                Richiedi Accesso
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Nome Completo *
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 glass rounded-lg border border-white/10 focus:border-primary-500 focus:outline-none text-white placeholder-gray-500"
-                      placeholder="Mario Rossi"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Email *
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 glass rounded-lg border border-white/10 focus:border-primary-500 focus:outline-none text-white placeholder-gray-500"
-                      placeholder="mario@email.com"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Wallet Address (Opzionale)
-                  </label>
-                  <div className="relative">
-                    <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.wallet}
-                      onChange={(e) => setFormData({ ...formData, wallet: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 glass rounded-lg border border-white/10 focus:border-primary-500 focus:outline-none text-white placeholder-gray-500"
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Inserisci il tuo wallet Polygon per ricevere i token
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Messaggio (Opzionale)
-                  </label>
-                  <div className="relative">
-                    <MessageSquare className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
-                    <textarea
-                      rows={4}
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 glass rounded-lg border border-white/10 focus:border-primary-500 focus:outline-none text-white placeholder-gray-500 resize-none"
-                      placeholder="Raccontaci la tua esperienza nel mining o perché vuoi partecipare..."
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full btn-primary text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <div className="spinner mr-3"></div>
-                      Invio in corso...
-                    </span>
-                  ) : (
-                    'Invia Richiesta'
-                  )}
-                </button>
-
-                <p className="text-xs text-gray-400 text-center">
-                  Compilando il form accetti i nostri termini e condizioni e la privacy policy
+              {/* CTA Card */}
+              <div className="glass-dark rounded-3xl p-8">
+                <h2 className="text-3xl font-bold mb-4 text-white">
+                  Inizia Oggi
+                </h2>
+                <p className="text-gray-300 mb-6">
+                  Registrati gratuitamente e accedi immediatamente al programma di mining, 
+                  dashboard personale e sistema di affiliazione.
                 </p>
-              </form>
+                <Link 
+                  href="/auth/register?source=free-mining" 
+                  className="btn-primary text-lg w-full block text-center"
+                >
+                  Crea Account Gratuito
+                </Link>
+                <p className="text-sm text-gray-400 text-center mt-4">
+                  ✅ Nessuna carta di credito richiesta
+                </p>
+              </div>
+
+              {/* Stats Card */}
+              <div className="glass rounded-2xl p-6">
+                <h4 className="font-semibold text-white mb-4">🚀 Community Attiva</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Miners Attivi</span>
+                    <span className="text-white font-semibold">950+</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Token Holders</span>
+                    <span className="text-white font-semibold">1,247</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Daily Rewards</span>
+                    <span className="text-primary-400 font-semibold">$15,234</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Network Uptime</span>
+                    <span className="text-green-400 font-semibold">99.9%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="glass rounded-2xl p-6">
+                <h4 className="font-semibold text-white mb-3">🔒 Sicurezza & Trasparenza</h4>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    Smart Contract Verificato
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    Audit di Sicurezza Completato
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    KYC Team Pubblico
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    Liquidity Lock 2 Anni
+                  </li>
+                </ul>
+              </div>
             </motion.div>
           </div>
         </div>

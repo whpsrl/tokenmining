@@ -121,10 +121,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    setUser(null);
-    toast.success('Logout effettuato');
-    router.push('/');
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+      }
+      setUser(null);
+      toast.success('Logout effettuato');
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Forza logout anche in caso di errore
+      setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/';
+      }
+    }
   };
 
   return (

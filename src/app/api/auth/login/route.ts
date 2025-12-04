@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     // Trova utente
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, password_hash, referral_code, wallet_address')
+      .select('id, email, password_hash, referral_code, wallet_address, is_admin')
       .eq('email', email.toLowerCase())
       .single();
 
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         referralCode: user.referral_code,
         walletAddress: user.wallet_address,
+        isAdmin: user.is_admin || false,
       },
     });
   } catch (error) {

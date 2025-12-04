@@ -10,6 +10,7 @@ interface User {
   name?: string;
   referralCode: string;
   walletAddress?: string;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {

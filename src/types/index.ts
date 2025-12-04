@@ -10,6 +10,7 @@ export interface User {
   total_referrals: number;
   total_commission: number;
   kyc_verified: boolean;
+  is_admin: boolean;
 }
 
 export interface TokenPurchase {

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Ottieni dati utente aggiornati
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, referral_code, wallet_address, created_at')
+      .select('id, email, referral_code, wallet_address, is_admin, created_at')
       .eq('id', payload.id)
       .single();
 
@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         referralCode: user.referral_code,
         walletAddress: user.wallet_address,
+        isAdmin: user.is_admin || false,
         totalReferrals: referralCount || 0,
         totalCommission,
         joinedAt: user.created_at,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -13,12 +13,40 @@ import {
   XCircle,
   Search,
   Download,
-  Mail
+  Mail,
+  Shield
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
+  const { user, isAuthenticated, loading } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'purchases' | 'settings'>('users');
+
+  // Protezione Admin - Redirect se non admin
+  useEffect(() => {
+    if (!loading) {
+      if (!isAuthenticated) {
+        router.push('/auth/login');
+      } else if (!user?.isAdmin) {
+        router.push('/dashboard');
+      }
+    }
+  }, [isAuthenticated, user, loading, router]);
+
+  // Mostra loading mentre verifica permessi
+  if (loading || !user?.isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-dark-50 via-dark-100 to-dark-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mb-4"></div>
+          <p className="text-gray-400">Verifica permessi...</p>
+        </div>
+      </div>
+    );
+  }
   
   const [stats] = useState({
     totalUsers: 1289,

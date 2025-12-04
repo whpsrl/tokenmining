@@ -74,6 +74,12 @@ export default function HomePage() {
                   <Link href="/dashboard" className="text-gray-300 hover:text-white transition">
                     Dashboard
                   </Link>
+                  {user?.isAdmin && (
+                    <Link href="/admin" className="text-primary-400 hover:text-primary-300 transition font-semibold flex items-center gap-1">
+                      <Shield className="w-4 h-4" />
+                      Admin
+                    </Link>
+                  )}
                   <button onClick={logout} className="btn-secondary text-sm">
                     <LogOut className="inline w-4 h-4 mr-2" />
                     Logout

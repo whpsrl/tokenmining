@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
           referred_by: referrerId,
         },
       ])
-      .select('id, email, referral_code')
+      .select('id, email, referral_code, is_admin')
       .single();
 
     if (createError || !newUser) {
@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
         email: newUser.email,
         name,
         referralCode: newUser.referral_code,
+        isAdmin: newUser.is_admin || false,
       },
     });
   } catch (error) {

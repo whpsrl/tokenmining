@@ -11,6 +11,9 @@ interface User {
   referralCode: string;
   walletAddress?: string;
   isAdmin: boolean;
+  totalReferrals?: number;
+  totalCommission?: number;
+  joinedAt?: string;
 }
 
 interface AuthContextType {
